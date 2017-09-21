@@ -1,0 +1,13 @@
+1.0_Austris is stable version
+
+To run windows app you need to run software with 2 arguments 1st is COM port, 2nd is text to send for arduino.
+Usage example: hpamssm.exe COM20 "Hello World!";
+
+- all characters will be validated
+- allowed all ASCII letters and numbers and (space)
+- if in word is two identical letters one after other it will make little space pause
+
+To do:
+Graphical interface;
+Linux and Mac version;
+Browser version with internet connection;
