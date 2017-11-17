@@ -229,22 +229,23 @@ void sayString(String text){
 
 void sayLetter(char letter){
 	// This will drive only those segments that need to be driven.
-	uint8_t working_char, current_bit, next_bit;
+	uint8_t working_char;
+	uint8_t bitmask, this_bit;
 	uint8_t drive_up[7], drive_down[7];
 	int j;
 
 	//working_char = pgm_read_word_near(ascii_lookup[text[i]]);
 	working_char = ascii_lookup[text[i]];
 
+	bitmask = working_char ^ CURRENT_SEG_STATE;
+
 	// Calculate drive signals
 	for (j=0; j<7; j++){
-		current_bit = CURRENT_SEG_STATE & (0x01<<j);
-		next_bit = working_char & (0x01<<j);
-
-		if(current_bit ^ next_bit){
+		this_bit = 0x01 << j;
+		if(bitmask & this_bit){
 			// Current and segment to-display differ
 			// Need to drive it
-			if (next_bit){
+			if (working_char & this_bit){
 				// Positive means need to go UP
 				drive_up[j] = 1;
 				drive_down[j] = 0;
