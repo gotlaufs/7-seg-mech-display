@@ -215,8 +215,8 @@ void sayString(String text){
 	for (i=0; i<text.length(); i++){
 		sayLetter(text[i]);
 
-		if(BLANK = true){
-			sayLetter{' '};
+		if(BLANK == true){
+			sayLetter(' ');
 		}
 		if(text[i] == ' '){
 			// Word ended - use word delay
@@ -242,7 +242,7 @@ void sayLetter(char letter){
 	int j;
 
 	//working_char = pgm_read_word_near(ascii_lookup[text[i]]);
-	working_char = ascii_lookup[text[i]];
+	working_char = ascii_lookup[letter];
 
 	#ifdef DEBUG
 	printSegmentChar(working_char);
