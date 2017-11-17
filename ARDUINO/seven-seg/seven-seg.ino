@@ -20,7 +20,7 @@ int WORD_DELAY = 1000;	// Dealy between words in the text to say
 
 // '1' in bit means segmet is UP
 // Organized in 0x0gfe'dcba
-uint8_t CURRENT_SEG_STATE = 0x00;
+uint8_t CURRENT_SEG_STATE;
 
 char string_buffer[32];
 int i;
@@ -29,6 +29,7 @@ String in_string = "";
 
 // Helpers
 void sayString(String text);
+void sayLetter(char letter);
 void printHelp(void);
 void printAbout(void);
 void printConfig(void);
@@ -42,6 +43,10 @@ void setup(void){
 		pinMode(SEG_UP[i], OUTPUT);
 		pinMode(SEG_DOWN[i], OUTPUT);
 	}
+
+	// Initialize the display to known state
+	CURRENT_SEG_STATE = 0x7F;
+	sayLetter(' ');
 }
 
 void loop(void){
@@ -199,59 +204,74 @@ void printConfig(void){
 
 void sayString(String text){
 	Serial.print("Displaying data - observe..  ");
-	// CURRENT_SEG_STATE
-	int j;
+
+	for (i=0; i<text.length(); i++){
+		sayLetter(text[i]);
+
+		if(BLANK = true){
+			sayLetter{' '};
+		}
+		if(text[i] == ' '){
+			// Word ended - use word delay
+			delay(WORD_DELAY);
+		}
+		else{
+			// Just in between character delay
+			delay(LETTER_DELAY);
+		}
+	}
+
+	// Blank when done
+	sayLetter(' ');
+
+	Serial.println("DONE!");
+}
+
+void sayLetter(char letter){
 	// This will drive only those segments that need to be driven.
 	uint8_t working_char, current_bit, next_bit;
 	uint8_t drive_up[7], drive_down[7];
-	for (i=0; i<text.length(); i++){
-		if(text[i] == ' '){
-			// Word ended, just delay
-			delay(WORD_DELAY);
-			continue;
-		}
+	int j;
 
-		//working_char = pgm_read_word_near(ascii_lookup[text[i]]);
-		working_char = ascii_lookup[text[i]];
+	//working_char = pgm_read_word_near(ascii_lookup[text[i]]);
+	working_char = ascii_lookup[text[i]];
 
-		// Calculate drive signals
-		for (j=0; j<7; j++){
-			current_bit = CURRENT_SEG_STATE & (0x01<<j);
-			next_bit = working_char & (0x01<<j);
+	// Calculate drive signals
+	for (j=0; j<7; j++){
+		current_bit = CURRENT_SEG_STATE & (0x01<<j);
+		next_bit = working_char & (0x01<<j);
 
-			if(current_bit ^ next_bit){
-				// Current and segment to-display differ
-				// Need to drive it
-				if (next_bit){
-					// Positive means need to go UP
-					drive_up[j] = 1;
-					drive_down[j] = 0;
-				}
-				else{
-					drive_up[j] = 0;
-					drive_down[j] = 1;
-				}
+		if(current_bit ^ next_bit){
+			// Current and segment to-display differ
+			// Need to drive it
+			if (next_bit){
+				// Positive means need to go UP
+				drive_up[j] = 1;
+				drive_down[j] = 0;
 			}
 			else{
 				drive_up[j] = 0;
-				drive_down[j] = 0;
+				drive_down[j] = 1;
 			}
 		}
-
-		// Do the actual driving
-		for (j=0; j<7; j++){
-			digitalWrite(SEG_UP[j], drive_up[j]);
-			digitalWrite(SEG_DOWN[j], drive_down[j]);
+		else{
+			drive_up[j] = 0;
+			drive_down[j] = 0;
 		}
-		delay(SEG_DRIVE_TIME);
-		for (j=0; j<7; j++){
-			digitalWrite(SEG_UP[j], 0);
-			digitalWrite(SEG_DOWN[j], 0);
-		}	
-
-		CURRENT_SEG_STATE = working_char;
-		delay(LETTER_DELAY);
 	}
 
-	Serial.println("DONE!");
+	// Do the actual driving
+	for (j=0; j<7; j++){
+		digitalWrite(SEG_UP[j], drive_up[j]);
+		digitalWrite(SEG_DOWN[j], drive_down[j]);
+	}
+
+	delay(SEG_DRIVE_TIME);
+
+	for (j=0; j<7; j++){
+		digitalWrite(SEG_UP[j], 0);
+		digitalWrite(SEG_DOWN[j], 0);
+	}	
+
+	CURRENT_SEG_STATE = working_char;
 }
