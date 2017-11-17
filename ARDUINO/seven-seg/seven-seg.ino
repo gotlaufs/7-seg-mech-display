@@ -6,8 +6,9 @@
 #include "alphabet.h"
 #include "msg.h"
 
-#define SEG_DRIVE_TIME 200 // How long apply current to each segment (ms)
+//#define DEBUG
 
+#define SEG_DRIVE_TIME 200 // How long apply current to each segment (ms)
 // Order is important. Segments:
 // G F E D C B A
 const char SEG_UP[7] = {7, 3, 6, 8, 5, 4, 2};
@@ -33,6 +34,10 @@ void sayLetter(char letter);
 void printHelp(void);
 void printAbout(void);
 void printConfig(void);
+
+#ifdef DEBUG
+void printSegmentChar(char letter);
+#endif
 
 void setup(void){
 	Serial.begin(9600);
@@ -237,6 +242,10 @@ void sayLetter(char letter){
 	//working_char = pgm_read_word_near(ascii_lookup[text[i]]);
 	working_char = ascii_lookup[text[i]];
 
+	#ifdef DEBUG
+	printSegmentChar(working_char);
+	#endif
+
 	bitmask = working_char ^ CURRENT_SEG_STATE;
 
 	// Calculate drive signals
@@ -276,3 +285,74 @@ void sayLetter(char letter){
 
 	CURRENT_SEG_STATE = working_char;
 }
+
+#ifdef DEBUG
+void printSegmentChar(char letter){
+	/*
+
+	####  // 0
+	#  #  // 4
+	####  // 8
+	#  #  // 12
+	####  // 16
+
+	*/
+	char buffer[20] = {' '};
+	int j;
+
+	if(letter & (0x01 << 1)){
+		// Segment A
+		buffer[0] = '#';
+		buffer[1] = '#';
+		buffer[2] = '#';
+		buffer[3] = '#';
+	}
+	if(letter & (0x01 << 1)){
+		// Segment B
+		buffer[3] = '#';
+		buffer[7] = '#';
+		buffer[11] = '#';
+	}
+	if(letter & (0x01 << 1)){
+		// Segment C
+		buffer[11] = '#';
+		buffer[15] = '#';
+		buffer[19] = '#';
+	}
+	if(letter & (0x01 << 1)){
+		// Segment D
+		buffer[16] = '#';
+		buffer[17] = '#';
+		buffer[18] = '#';
+		buffer[19] = '#';
+	}
+	if(letter & (0x01 << 1)){
+		// Segment E
+		buffer[8] = '#';
+		buffer[12] = '#';
+		buffer[16] = '#';
+	}
+	if(letter & (0x01 << 1)){
+		// Segment F
+		buffer[0] = '#';
+		buffer[4] = '#';
+		buffer[8] = '#';
+	}
+	if(letter & (0x01 << 1)){
+		// Segment G
+		buffer[8] = '#';
+		buffer[9] = '#';
+		buffer[10] = '#';
+		buffer[11] = '#';
+	}
+
+	// Print out the buffer
+	for(j=0; j<20; j++){
+		if(!(j%4)){
+			// Every 4th line
+			Serial.println();
+		}
+		Serial.print(buffer[j]);
+	}
+}
+#endif
