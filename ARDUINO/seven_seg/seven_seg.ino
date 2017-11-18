@@ -8,7 +8,7 @@
 #include "alphabet.h"
 #include "msg.h"
 
-//#define DEBUG
+#define DEBUG
 
 #define SEG_DRIVE_TIME 200 // How long apply current to each segment (ms)
 // Order is important. Segments:
@@ -302,7 +302,12 @@ void printSegmentChar(char letter){
 	char buffer[20] = {' '};
 	int j;
 
-	if(letter & (0x01 << 1)){
+	// Initialize buffer array
+	for(j=0; j<20; j++){
+		buffer[j] = ' ';
+	}
+
+	if(letter & (0x01 << 0)){
 		// Segment A
 		buffer[0] = '#';
 		buffer[1] = '#';
@@ -315,32 +320,32 @@ void printSegmentChar(char letter){
 		buffer[7] = '#';
 		buffer[11] = '#';
 	}
-	if(letter & (0x01 << 1)){
+	if(letter & (0x01 << 2)){
 		// Segment C
 		buffer[11] = '#';
 		buffer[15] = '#';
 		buffer[19] = '#';
 	}
-	if(letter & (0x01 << 1)){
+	if(letter & (0x01 << 3)){
 		// Segment D
 		buffer[16] = '#';
 		buffer[17] = '#';
 		buffer[18] = '#';
 		buffer[19] = '#';
 	}
-	if(letter & (0x01 << 1)){
+	if(letter & (0x01 << 4)){
 		// Segment E
 		buffer[8] = '#';
 		buffer[12] = '#';
 		buffer[16] = '#';
 	}
-	if(letter & (0x01 << 1)){
+	if(letter & (0x01 << 5)){
 		// Segment F
 		buffer[0] = '#';
 		buffer[4] = '#';
 		buffer[8] = '#';
 	}
-	if(letter & (0x01 << 1)){
+	if(letter & (0x01 << 6)){
 		// Segment G
 		buffer[8] = '#';
 		buffer[9] = '#';
