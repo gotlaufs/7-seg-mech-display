@@ -8,9 +8,9 @@
 #include "alphabet.h"
 #include "msg.h"
 
-#define DEBUG
+//#define DEBUG
 
-//#define SEG_DRIVE_TIME 200 // How long apply current to each segment (ms)
+#define SEG_DRIVE_TIME 200 // How long apply current to each segment (ms)
 // Order is important. Segments:
 // G F E D C B A
 const char SEG_UP[7] = {7, 3, 6, 8, 5, 4, 2};
