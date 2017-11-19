@@ -104,11 +104,11 @@ void loop(void){
 			}
 			else if(command.equalsIgnoreCase("WORD_DELAY")){
 				working_int = in_string.toInt();
-				if (working_int < 200){
+				if (working_int < 0){
 					Serial.print("ERROR: Incorrect length for WORD_DELAY: <");
 					Serial.print(in_string);
 					Serial.println(">.");
-					Serial.println("Supported values are integers >200");
+					Serial.println("Supported values are integers >0");
 				}
 				else{
 					WORD_DELAY = working_int;
@@ -117,11 +117,11 @@ void loop(void){
 			}
 			else if(command.equalsIgnoreCase("LETTER_DELAY")){
 				working_int = in_string.toInt();
-				if (working_int < 200){
+				if (working_int < 0){
 					Serial.print("ERROR: Incorrect length for LETTER_DELAY: <");
 					Serial.print(in_string);
 					Serial.println(">.");
-					Serial.println("Supported values are integers >200");
+					Serial.println("Supported values are integers >0");
 				}
 				else{
 					LETTER_DELAY = working_int;
