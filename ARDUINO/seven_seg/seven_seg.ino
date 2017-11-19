@@ -10,7 +10,7 @@
 
 #define DEBUG
 
-#define SEG_DRIVE_TIME 200 // How long apply current to each segment (ms)
+//#define SEG_DRIVE_TIME 200 // How long apply current to each segment (ms)
 // Order is important. Segments:
 // G F E D C B A
 const char SEG_UP[7] = {7, 3, 6, 8, 5, 4, 2};
@@ -241,8 +241,7 @@ void sayLetter(char letter){
 	uint8_t drive_up[7], drive_down[7];
 	int j;
 
-	//working_char = pgm_read_word_near(ascii_lookup[text[i]]);
-	working_char = ascii_lookup[letter];
+	working_char = pgm_read_byte(ascii_lookup + letter);
 
 	#ifdef DEBUG
 	printSegmentChar(working_char);
