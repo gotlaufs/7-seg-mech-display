@@ -10,14 +10,14 @@
 
 //#define DEBUG
 
-#define SEG_DRIVE_TIME 200 // How long apply current to each segment (ms)
+#define SEG_DRIVE_TIME 250 // How long apply current to each segment (ms)
 // Order is important. Segments:
-// G F E D C B A
-const char SEG_UP[7] = {7, 3, 6, 8, 5, 4, 2};
-const char SEG_DOWN[7] = {A0, 10, 12, A1, 13, 11, 9};
+// A B C D E F G
+const char SEG_UP[7] = {2, 4, 5, 8, 6, 3, 7};
+const char SEG_DOWN[7] = {9, 11, 13, A1, 12, 10, A0};
 
 boolean ECHO = false;	// Echo back Serial characters is using standard terminal
-boolean BLANK = true;	// Blank between letters
+boolean BLANK = false;	// Blank between letters
 int LETTER_DELAY = 500;	// Delay between letters in milliseconds
 int WORD_DELAY = 1000;	// Dealy between words in the text to say
 
@@ -200,7 +200,7 @@ void printConfig(void){
 	Serial.print(LETTER_DELAY);
 	Serial.println(" ms");
 	Serial.print(" >> WORD_DELAY = ");
-	Serial.print(LETTER_DELAY);
+	Serial.print(WORD_DELAY);
 	Serial.println(" ms");
 	Serial.print(" >> ECHO = ");
 	Serial.println(ECHO);
