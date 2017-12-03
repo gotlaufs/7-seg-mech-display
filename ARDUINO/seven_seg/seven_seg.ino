@@ -169,7 +169,7 @@ void loop(void){
 				printAbout();
 			}
 			else{
-				Serial.print("Unknown command: <");
+				Serial.print("ERROR: Unknown command: <");
 				Serial.print(command);
 				Serial.println(">");
 				Serial.println("HELP for more information");

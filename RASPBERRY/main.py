@@ -2,7 +2,7 @@
 """ Main Parrot app """
 
 import logging
-import arduino_hander
+import arduino_handler
 
 
 def main():
@@ -13,4 +13,5 @@ def main():
     arduino.close()
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
     main()

@@ -6,19 +6,19 @@ import time
 
 class ArduinoHandler():
     """Class to interface with Arduino FW"""
-    self.BAUD = 9600
-    self.MAX_MESSAGE_LEN = 200
-    self.DEFAULT_PORT = "/dev/ttyUSB0"
-    self.TERM_CHAR = b"\n"
+    BAUD = 9600
+    MAX_MESSAGE_LEN = 200
+    DEFAULT_PORT = "/dev/ttyUSB0"
+    TERM_CHAR = b"\n"
     # How long to wait for Raspberry to process UART requests
-    self.SERIAL_DELAY = 0.1
-    self.SERIAL_TIMEOUT = 2  # How long to wait for serial messages
+    SERIAL_DELAY = 0.5
+    SERIAL_TIMEOUT = 2  # How long to wait for serial messages
 
     # Default Arduino values. Used for calculating timeout for UART read
-    self.LETTER_DELAY = 500
-    self.WORD_DELAY = 1000
-    self.DRIVE_TIME = 250
-    self.BLANK = False
+    LETTER_DELAY = 500
+    WORD_DELAY = 1000
+    DRIVE_TIME = 250
+    BLANK = False
 
     def __init__(self, port=None):
         """Initializer
@@ -37,8 +37,10 @@ class ArduinoHandler():
             self.port.port = port
 
         # Open the serial port for writing
-        loging.debug("Trying to open serial port <%s>.." % self.port.port)
+        logging.debug("Trying to open serial port <%s>.." % self.port.port)
         self.port.open()
+        time.sleep(2)
+        self.port.reset_input_buffer()
 
     def say(self, message):
         """Make the display say something"""
@@ -119,25 +121,26 @@ class ArduinoHandler():
         time.sleep(self.SERIAL_DELAY)
         self.port.reset_input_buffer()
         logging.debug("Sending message: <%s>" % string)
+        string += "\n"
         self.port.write(string.encode())
 
-    def _reply_check(self, timeout=self.SERIAL_DELAY):
+    def _reply_check(self, timeout=None):
         """Check the status of the Arduino reply"""
+        if timeout is None:
+            timeout = self.SERIAL_DELAY
         time.sleep(timeout)
         line = self.port.readline()
-        line = decode(line)
+        line = line.decode()
 
         if "OK" in line:
             logging.debug("Got an OK response")
             return line
-        elif "ERROR" in line:
-            rem_bytes = self.port.in_waiting()
-            data = self.read(rem_bytes)
-            data = decode(data)
+        else:
+            rem_bytes = self.port.in_waiting
+            data = self.port.read(rem_bytes)
+            data = data.decode()
             line += data
             raise ArduinoHandlerError(line)
-        else:
-            raise ArduinoHandlerError("Unknown error, message = <%s>" % line)
 
 
 class ArduinoHandlerError(Exception):
