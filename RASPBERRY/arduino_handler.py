@@ -82,6 +82,7 @@ class ArduinoHandler():
         self._send_bytes(data)
         self._reply_check()
         self.BLANK = state
+        logging.debug("Set BLANK to %s" % state)
 
     def letter_delay(self, delay):
         """Set the delay between displaying characters
@@ -93,6 +94,7 @@ class ArduinoHandler():
         self._send_bytes(data)
         self._reply_check()
         self.LETTER_DELAY = delay
+        logging.debug("Set LETTER_DELAY to %d ms" % delay)
 
     def word_delay(self, delay):
         """Set the delay between displaying words
@@ -104,6 +106,7 @@ class ArduinoHandler():
         self._send_bytes(data)
         self._reply_check()
         self.WORD_DELAY = delay
+        logging.debug("Set WORD_DELAY to %d ms" % delay)
 
     def close(self):
         """Do cleanup"""
