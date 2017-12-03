@@ -63,13 +63,10 @@ class ArduinoHandler():
         logging.debug("Calculated display time for message is %.2f s"
                       % timeout)
 
-        old_timeout = self.port.timeout
-        self.port.timeout = timeout + 1  # Add some margin
-
         data = "SAY " + message
+
         self._send_bytes(data)
-        self.port.timeout = old_timeout
-        logging.debug("Restored old UART read timeout: %.2f" % old_timeout)
+        self._reply_check(timeout + 1)  # Add some time margin
 
     def blank(self, state=False):
         """Turn the blanking between characters ON or OFF"""
@@ -81,6 +78,7 @@ class ArduinoHandler():
             raise ArduinoHandlerError("Invalid blank state: <%s>" % state)
 
         self._send_bytes(data)
+        self._reply_check()
         self.BLANK = state
 
     def letter_delay(self, delay):
@@ -91,6 +89,7 @@ class ArduinoHandler():
 
         data = "LETTER_DELAY " + str(delay)
         self._send_bytes(data)
+        self._reply_check()
         self.LETTER_DELAY = delay
 
     def word_delay(self, delay):
@@ -101,6 +100,7 @@ class ArduinoHandler():
 
         data = "WORD_DELAY " + str(delay)
         self._send_bytes(data)
+        self._reply_check()
         self.WORD_DELAY = delay
 
     def close(self):
@@ -121,9 +121,9 @@ class ArduinoHandler():
         logging.debug("Sending message: <%s>" % string)
         self.port.write(string.encode())
 
-    def _reply_check(self):
+    def _reply_check(self, timeout=self.SERIAL_DELAY):
         """Check the status of the Arduino reply"""
-        time.sleep(self.SERIAL_DELAY)
+        time.sleep(timeout)
         line = self.port.readline()
         line = decode(line)
 

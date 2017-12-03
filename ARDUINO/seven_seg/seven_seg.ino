@@ -232,7 +232,7 @@ void sayString(String text){
 	// Blank when done
 	sayLetter(' ');
 
-	Serial.println("DONE!");
+	Serial.println("OK");
 }
 
 void sayLetter(char letter){
