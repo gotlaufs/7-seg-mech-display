@@ -172,7 +172,8 @@ void loop(void){
 				Serial.print("Unknown command: <");
 				Serial.print(command);
 				Serial.println(">");
-				printHelp();
+				Serial.println("HELP for more information");
+				//printHelp();
 			}
 
 			in_string = "";
@@ -282,7 +283,7 @@ void sayLetter(char letter){
 	for (j=0; j<7; j++){
 		digitalWrite(SEG_UP[j], 0);
 		digitalWrite(SEG_DOWN[j], 0);
-	}	
+	}
 
 	CURRENT_SEG_STATE = working_char;
 }
