@@ -1,1 +1,6 @@
 __pycache__/
+# Private access token
+auth.json
+test*
+*.h264
+*.mp4
