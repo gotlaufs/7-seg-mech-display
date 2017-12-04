@@ -3,10 +3,15 @@
 
 import time
 import logging
+import subprocess
 import picamera
 import arduino_handler
 
 VIDEO_FILE = "video.h264"
+VIDEO_FILE2 = "video.mp4"
+# Use ffmpeg to put raw h.264 video in mp4 container with no re-encodeing
+# 'y' to all questions
+ENCODE_CMD = ["ffmpeg", "y", "-i", VIDEO_FILE, "-c", "copy", VIDEO_FILE2]
 
 
 def main():
@@ -26,6 +31,13 @@ def main():
     arduino.close()
     logging.debug("Stopping recording")
     camera.stop_recording()
+
+    logging.info("Calling ffmpeg..")
+    p = subprocess.run(ENCODE_CMD)
+    if p.returncode == 0:
+        logging.info("Video conversion done")
+    else:
+        logging.error("ffmpeg failed with code: %d" % p.returncode)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
