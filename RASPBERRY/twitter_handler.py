@@ -2,7 +2,7 @@
 import json
 import logging
 import re
-import unicodedata
+import unidecode
 import twitter
 
 
@@ -53,7 +53,7 @@ class TwitterHandler():
             text = text.lstrip()
             text = text.rstrip()
             # Convert characters to ASCII
-            text = unicodedata.normalize('NFKD', text)
+            text = unidecode.unidecode(text)
             # text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore')
 
             sl[i]["Text"] = text

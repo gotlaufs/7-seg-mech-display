@@ -11,4 +11,6 @@ Dependencies (get all of them through pip3):
  - picamera
  - pyserial
  - python-twitter
+ - tinydb
+ - unidecode
  
