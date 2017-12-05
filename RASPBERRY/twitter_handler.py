@@ -47,23 +47,23 @@ class TwitterHandler():
         sl = self.get_messages_dict()
         for i, s in enumerate(sl):
             text = sl[i]["Text"]
-            print("Before = <%s>" % text)
             # Get rid of hashtag (Case insensitive)
             text = pattern.sub("", text)
             # Trim leading and ending whitespaces
             text = text.lstrip()
             text = text.rstrip()
             # Convert characters to ASCII
-            text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore')
+            text = unicodedata.normalize('NFKD', text)
+            # text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore')
 
             sl[i]["Text"] = text
-            print("After = <%s>" % text)
 
         return sl
 
     def post_reply(self, message, uid):
         """Post reply tweet to specified message"""
         logging.info("Tweeting message <%s>" % message)
+        self.api.PostUpdate(message)
 
     def post_video_reply(self, message, uid, video_file):
         """Upload video to Twitter and post as a reply to tweet with 'id'"""
@@ -74,4 +74,4 @@ class TwitterHandler():
             status = self.api.PostUpdate("Here is your reply", media=f,
                                          in_reply_to_status_id=uid)
 
-        print(status)
+        return status

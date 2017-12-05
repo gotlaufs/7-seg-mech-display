@@ -73,9 +73,9 @@ class ArduinoHandler():
     def blank(self, state=False):
         """Turn the blanking between characters ON or OFF"""
         if state is True:
-            data = b"BLANK ON"
+            data = "BLANK ON"
         elif state is False:
-            data = b"BLANK OFF"
+            data = "BLANK OFF"
         else:
             raise ArduinoHandlerError("Invalid blank state: <%s>" % state)
 
