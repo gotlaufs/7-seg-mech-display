@@ -53,8 +53,8 @@ class ArduinoHandler():
         spaces = message.count(" ")
         regular_chars = len(message) - spaces
 
-        regular_time = self.DRIVE_TIME * 2 + self.LETTER_DELAY
-        space_time = self.DRIVE_TIME * 2 + self.WORD_DELAY
+        regular_time = self.DRIVE_TIME + self.LETTER_DELAY
+        space_time = self.DRIVE_TIME + self.WORD_DELAY
 
         timeout = regular_chars * regular_time
         timeout += spaces * space_time
