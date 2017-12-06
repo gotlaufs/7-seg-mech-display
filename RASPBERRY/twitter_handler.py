@@ -63,7 +63,9 @@ class TwitterHandler():
     def post_reply(self, message, uid):
         """Post reply tweet to specified message"""
         logging.info("Tweeting message <%s>" % message)
-        self.api.PostUpdate(message)
+        status = self.api.PostUpdate(message, in_reply_to_status_id=uid)
+
+        return status
 
     def post_video_reply(self, message, uid, video_file):
         """Upload video to Twitter and post as a reply to tweet with 'id'"""

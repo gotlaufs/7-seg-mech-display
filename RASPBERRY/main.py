@@ -83,7 +83,8 @@ def main():
                 s["source"] = "Twitter"
                 s["already_shown"] = False
                 s["moderation"] = "None"
-                s["too_long"] = False
+                s["video_len"] = 0
+                s["too_long_video_message_sent"] = False
 
                 # Add new result to DB
                 db.insert(s)
@@ -102,7 +103,7 @@ def main():
 
         # Get a list of messages to display
         to_display = db.search((entry.already_shown == False) &
-                               entry.too_long == False)
+                               (entry.video_len <= 30))
         logging.info("Found %d messages that need displaying"
                      % len(to_display))
 
@@ -110,7 +111,8 @@ def main():
         for t in to_display:
             moderation_ok = t["moderation"] = "Pass"
             if MODERATION_ON and not moderation_ok:
-                logging.warning("This tweet <%s> requires moderation! Skip.")
+                logging.warning("This tweet <%s> requires moderation! Skip."
+                                % t["Text"])
                 continue
 
             logging.info("Displaying message: %s" % t["Text"])
@@ -133,10 +135,10 @@ def main():
 
             time_video = time_stop - time_start
             logging.info("Recording length is %d seconds" % time_video)
+            db.update({"video_len": time_video}, entry.ID == t["ID"])
             if time_video > 30:
-                logging.error("Recording too long! Dicarding..")
-                # TODO: Database add discard option
-                db.update({"too_long": True}, entry.ID == t["ID"])
+                logging.error("Recording too long! Discarding..")
+                # TODO: Message to Twitter that video is too long
                 continue
 
             # Put raw video into MP4 container
@@ -166,6 +168,30 @@ def main():
             logging.info("Succesfully posted video tweet")
             logging.info("Marking entry in DB")
             db.update({"already_shown": True}, entry.ID == t["ID"])
+
+        # Find a list of too-long messages that need to be tweeted back
+        to_display = db.search((entry.video_len >= 30) &
+                               (entry.too_long_video_message_sent == False))
+        logging.info(("Found %d messages that are too long and still need "
+                      "reply Tweet") % len(to_disply))
+
+        for t in to_disply:
+            message = ("Unfortunately Twitter only allows 30s video. "
+                       "Your message was %ds :(" % t["video_len"])
+            try:
+                tw.post_reply(message, t["ID"])
+            except Exception as exc:
+                if PRINT_FULL_EXCEPTION:
+                    print(traceback.format_exc())
+                print(exc)
+
+                logging.error("Some error while posting a regular Tweet")
+                continue
+
+            logging.info("Succesfully posted a reply tweet")
+            logging.info("Marking entry in DB")
+            d.update({"too_long_video_message_sent": True},
+                     entry.ID == t["ID"])
 
         logging.info("Done with all the messages, restarting loop. Wait %d s"
                      % LOOP_DELAY)
