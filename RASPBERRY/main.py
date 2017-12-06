@@ -5,6 +5,8 @@ import time
 import logging
 import subprocess
 import traceback
+import sys
+import select
 
 import picamera
 import tinydb
@@ -95,9 +97,28 @@ def main():
                 logging.error("More than 1 tweet in db with id <%s>" % s["ID"])
 
         # Do moderation
-        if MODERATION_ON:
-            need_moderation = db.search(entry.moderation == "None")
-            # TODO: Add moderation function
+        need_moderation = db.search(entry.moderation == "None")
+        if MODERATION_ON and len(need_moderation) > 0:
+            # Timed moderation prompt
+            timeout = 5
+            print("%d messages need moderation. Do that now? (ENTER)(%ds) :"
+                  % (len(need_moderation, timeout)))
+            rlist, _, _ = select.select([sys.stdin], [], [], timeout)
+            if rlist:
+                # Flush stdin
+                sys.stdin.readline()
+                for t in need_moderation:
+                    ans = input("<%s> appropriate? (y/n): ")
+                    if ans == "y" or ans == "Y":
+                        db.update({"moderation": "Pass"},
+                                  entry.ID == t["ID"])
+                    elif ans == "n" or ans == "N":
+                        db.update({"moderation": "Fail"},
+                                  entry.ID == t["ID"])
+                    else:
+                        print("Did not understand '%s'" % ans)
+            else:
+                continue
         else:
             logging.info("Message moderation is turned off, skipping..")
 
@@ -109,7 +130,7 @@ def main():
 
         # Try to display tweets that need displaying
         for t in to_display:
-            moderation_ok = t["moderation"] = "Pass"
+            moderation_ok = t["moderation"] == "Pass"
             if MODERATION_ON and not moderation_ok:
                 logging.warning("This tweet <%s> requires moderation! Skip."
                                 % t["Text"])
