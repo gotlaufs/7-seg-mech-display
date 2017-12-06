@@ -83,6 +83,7 @@ def main():
                 s["source"] = "Twitter"
                 s["already_shown"] = False
                 s["moderation"] = "None"
+                s["too_long"] = False
 
                 # Add new result to DB
                 db.insert(s)
@@ -100,7 +101,8 @@ def main():
             logging.info("Message moderation is turned off, skipping..")
 
         # Get a list of messages to display
-        to_display = db.search(entry.already_shown == False)
+        to_display = db.search((entry.already_shown == False) &
+                               entry.too_long == False)
         logging.info("Found %d messages that need displaying"
                      % len(to_display))
 
@@ -113,6 +115,7 @@ def main():
 
             logging.info("Displaying message: %s" % t["Text"])
             logging.info("Starting video recording")
+            time_start = time.time()
             camera.start_recording(VIDEO_FILE, format="h264", quality=23)
             try:
                 arduino.say(t["Text"])
@@ -126,6 +129,15 @@ def main():
 
             logging.debug("Stopping recording")
             camera.stop_recording()
+            time_stop = time.time()
+
+            time_video = time_stop - time_start
+            logging.info("Recording length is %d seconds" % time_video)
+            if time_video > 30:
+                logging.error("Recording too long! Dicarding..")
+                # TODO: Database add discard option
+                db.update({"too_long": True}, entry.ID == t["ID"])
+                continue
 
             # Put raw video into MP4 container
             logging.info("Calling ffmpeg..")
