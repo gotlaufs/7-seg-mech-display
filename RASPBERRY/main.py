@@ -22,8 +22,7 @@ MODERATION_ON = True
 ARDUINO_PORT = "/dev/ttyUSB0"
 
 # Pause between main loop iterations
-# LOOP_DELAY = 15
-LOOP_DELAY = 2
+LOOP_DELAY = 15
 
 # If True, will print the whole Python traceback on every handled exception
 PRINT_FULL_EXCEPTION = False
