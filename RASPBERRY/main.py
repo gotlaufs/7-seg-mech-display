@@ -22,7 +22,8 @@ MODERATION_ON = True
 ARDUINO_PORT = "/dev/ttyUSB0"
 
 # Pause between main loop iterations
-LOOP_DELAY = 15
+# LOOP_DELAY = 15
+LOOP_DELAY = 2
 
 # If True, will print the whole Python traceback on every handled exception
 PRINT_FULL_EXCEPTION = False
@@ -102,13 +103,13 @@ def main():
             # Timed moderation prompt
             timeout = 5
             print("%d messages need moderation. Do that now? (ENTER)(%ds) :"
-                  % (len(need_moderation, timeout)))
+                  % (len(need_moderation), timeout))
             rlist, _, _ = select.select([sys.stdin], [], [], timeout)
             if rlist:
                 # Flush stdin
                 sys.stdin.readline()
                 for t in need_moderation:
-                    ans = input("<%s> appropriate? (y/n): ")
+                    ans = input("<%s> appropriate? (y/n): " % t["Text"])
                     if ans == "y" or ans == "Y":
                         db.update({"moderation": "Pass"},
                                   entry.ID == t["ID"])
@@ -154,7 +155,8 @@ def main():
             camera.stop_recording()
             time_stop = time.time()
 
-            time_video = time_stop - time_start
+            # Add some random scaling factor, because videos turn out to be longer than Python timing
+            time_video = (time_stop - time_start) * 1.206
             logging.info("Recording length is %d seconds" % time_video)
             db.update({"video_len": time_video}, entry.ID == t["ID"])
             if time_video > 30:
@@ -194,9 +196,9 @@ def main():
         to_display = db.search((entry.video_len >= 30) &
                                (entry.too_long_video_message_sent == False))
         logging.info(("Found %d messages that are too long and still need "
-                      "reply Tweet") % len(to_disply))
+                      "reply Tweet") % len(to_display))
 
-        for t in to_disply:
+        for t in to_display:
             message = ("Unfortunately Twitter only allows 30s video. "
                        "Your message was %ds :(" % t["video_len"])
             try:
@@ -211,7 +213,7 @@ def main():
 
             logging.info("Succesfully posted a reply tweet")
             logging.info("Marking entry in DB")
-            d.update({"too_long_video_message_sent": True},
+            db.update({"too_long_video_message_sent": True},
                      entry.ID == t["ID"])
 
         logging.info("Done with all the messages, restarting loop. Wait %d s"
