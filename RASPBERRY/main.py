@@ -9,7 +9,6 @@ import sys
 import select
 
 import picamera
-import tinydb
 
 import arduino_handler
 import twitter_handler
@@ -27,105 +26,55 @@ PRINT_FULL_EXCEPTION = False
 # Should not me changed
 VIDEO_FILE = "video.h264"
 VIDEO_FILE2 = "video.mp4"
-DB_FILE = "db.json"
 # Use ffmpeg to put raw h.264 video in mp4 container with no re-encodeing
 # 'y' to all questions
 ENCODE_CMD = ["ffmpeg", "-y", "-i", VIDEO_FILE, "-c", "copy", VIDEO_FILE2]
 
+class TwitterParrot():
+    """Twitter Parrot App"""
 
-def main():
-    logging.info("Starting script")
+    def __init__(self):
+        logging.info("Starting script")
 
-    logging.info("Initializing Arduino communication")
-    arduino = arduino_handler.ArduinoHandler(ARDUINO_PORT)
-    logging.info("Setting Arduino display parameters")
-    arduino.blank(False)
-    arduino.letter_delay(100)
-    arduino.word_delay(200)
+        logging.info("Initializing Arduino communication")
+        self.arduino = arduino_handler.ArduinoHandler(ARDUINO_PORT)
+        logging.info("Setting Arduino display parameters")
+        self.arduino.blank(False)
+        self.arduino.letter_delay(100)
+        self.arduino.word_delay(200)
 
-    logging.info("Initializing camera")
-    camera = picamera.PiCamera()
-    camera.resolution = (1280, 720)
+        logging.info("Initializing camera")
+        self.camera = picamera.PiCamera()
+        self.camera.resolution = (1280, 720)
 
-    logging.info("Initializing database")
-    db = tinydb.TinyDB(DB_FILE)
+        logging.info("Initializing Twitter")
+        self.tw = twitter_handler.TwitterHandler()
 
-    logging.info("Initializing Twitter")
-    tw = twitter_handler.TwitterHandler()
-
-    logging.info("Entering main loop.. Wait %d s" % LOOP_DELAY)
-
-    while(True):
-        # Sleep for some time to not swarm Twitter API
-        # TODO: Change to countdown (function)
-        time.sleep(LOOP_DELAY)
-        # Attempt to get new tweets
+    def show_tweet(self, tweet):
+        """Show a single Tweet, record it and post a reply"""
+        logging.info("Displaying message: %s" % t["Text"])
+        logging.info("Starting video recording")
+        time_start = time.time()
+        self.camera.start_recording(VIDEO_FILE, format="h264", quality=23)
         try:
-            statuses = tw.get_messages_clean()
+            self.arduino.say(t["Text"])
         except Exception as exc:
+            # TODO: Log error
             if PRINT_FULL_EXCEPTION:
                 print(traceback.format_exc())
             print(exc)
 
-            logging.error("Exception while getting tweets! API rate limiting?")
-            continue
+            logging.error("Fail in Arduino comm.")
+            return
 
-        logging.info("Succesfully got %d tweets from API" % len(statuses))
+        logging.debug("Stopping recording")
+        self.camera.stop_recording()
+        time_stop = time.time()
 
-        # Check against existing in database
-        entry = tinydb.Query()
-        for s in statuses:
-            results = db.search(entry.ID == s["ID"])
-            if len(results) == 0:
-                logging.info("Got a new tweet with ID=<%s>" % s["ID"])
-                # Add some fields for DB
-                s["source"] = "Twitter"
-                s["already_shown"] = False
-                s["video_len"] = 0
-                s["too_long_video_message_sent"] = False
-
-                # Add new result to DB
-                db.insert(s)
-            elif len(results) == 1:
-                logging.debug("Tweet with ID=<%s> already found in DB"
-                              % s["ID"])
-            elif len(results) > 1:
-                logging.error("More than 1 tweet in db with id <%s>" % s["ID"])
-
-        # Get a list of messages to display
-        to_display = db.search((entry.already_shown == False) &
-                               (entry.video_len <= 30))
-        logging.info("Found %d messages that need displaying"
-                     % len(to_display))
-
-        # Try to display tweets that need displaying
-        for t in to_display:
-            logging.info("Displaying message: %s" % t["Text"])
-            logging.info("Starting video recording")
-            time_start = time.time()
-            camera.start_recording(VIDEO_FILE, format="h264", quality=23)
-            try:
-                arduino.say(t["Text"])
-            except Exception as exc:
-                if PRINT_FULL_EXCEPTION:
-                    print(traceback.format_exc())
-                print(exc)
-
-                logging.error("Fail in Arduino comm.")
-                continue
-
-            logging.debug("Stopping recording")
-            camera.stop_recording()
-            time_stop = time.time()
-
-            # Add some random scaling factor, because videos turn out to be longer than Python timing
-            time_video = (time_stop - time_start) * 1.206
-            logging.info("Recording length is %d seconds" % time_video)
-            db.update({"video_len": time_video}, entry.ID == t["ID"])
-            if time_video > 30:
-                logging.error("Recording too long! Discarding..")
-                # TODO: Message to Twitter that video is too long
-                continue
+        # Add some random scaling factor, because videos turn out to be longer than Python timing
+        time_video = (time_stop - time_start) * 1.206
+        logging.info("Recording length is %d seconds" % time_video)
+        if time_video < 30:
 
             # Put raw video into MP4 container
             logging.info("Calling ffmpeg..")
@@ -135,62 +84,71 @@ def main():
             if p.returncode == 0:
                 logging.info("Video conversion done")
             else:
+                # TODO: Add stderr and stdout to logging in case of error
                 logging.error("ffmpeg failed with code: %d" % p.returncode)
-                continue
+                return
 
             # Post the video to Twitter
-            m = get_reply_message()
+            m = self.get_reply_message()
             try:
-                tw.post_video_reply(message=m, uid=t["ID"],
+                self.tw.post_video_reply(message=m, uid=t["ID"],
                                     video_file=VIDEO_FILE2)
             except Exception as exc:
+                # TODO: Log exception, not just print
                 if PRINT_FULL_EXCEPTION:
                     print(traceback.format_exc())
                 print(exc)
 
                 logging.error("Some error while posting Twitter video")
-                continue
+                return
 
             logging.info("Succesfully posted video tweet")
-            logging.info("Marking entry in DB")
-            db.update({"already_shown": True}, entry.ID == t["ID"])
+        else:
+            logging.error("Recording too long! Discarding..")
 
-        # Find a list of too-long messages that need to be tweeted back
-        to_display = db.search((entry.video_len >= 30) &
-                               (entry.too_long_video_message_sent == False))
-        logging.info(("Found %d messages that are too long and still need "
-                      "reply Tweet") % len(to_display))
-
-        for t in to_display:
             message = ("Unfortunately Twitter only allows 30s video. "
                        "Your message was %ds :(" % t["video_len"])
             try:
                 tw.post_reply(message, t["ID"])
             except Exception as exc:
+                # TODO: Log exception, not just print
                 if PRINT_FULL_EXCEPTION:
                     print(traceback.format_exc())
                 print(exc)
 
                 logging.error("Some error while posting a regular Tweet")
-                continue
+                return
 
             logging.info("Succesfully posted a reply tweet")
-            logging.info("Marking entry in DB")
-            db.update({"too_long_video_message_sent": True},
-                     entry.ID == t["ID"])
 
-        logging.info("Done with all the messages, restarting loop. Wait %d s"
-                     % LOOP_DELAY)
+    def get_reply_message(self):
+        """Return a text message that is attached to the reply video"""
+        # TODO: Make this something interesting
+        return "You say and I reply :)"
 
-    arduino.close()
+    def run(self):
+        """Main program loop
 
+        1. Get all the old tweets from REST API
+        2. Display those
+        3. Open Streaming interface and run on that endlessly"""
+        # TODO: Restart Streaming interface on errors?
+        try:
+            statuses = self.tw.get_messages_clean()
+        except Exception as exc:
+            # TODO: Log exceptions
+            if PRINT_FULL_EXCEPTION:
+                print(traceback.format_exc())
+            print(exc)
 
-def get_reply_message():
-    """Return a text message that is attached to the reply video"""
-    # TODO: Make this something interesting
-    return "You say and I reply :)"
+            logging.error("Exception while getting tweets! API rate limiting?")
+            return
+
+        logging.info("Succesfully got %d tweets from API" % len(statuses))
+        self.arduino.close()
 
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    main()
+    app = TwitterParrot()
+    app.run()
