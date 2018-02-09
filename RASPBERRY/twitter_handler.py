@@ -52,9 +52,8 @@ class TwitterHandler():
             # Trim leading and ending whitespaces
             text = text.lstrip()
             text = text.rstrip()
-            # Convert characters to ASCII
+            # Convert unicode to standard characters
             text = unidecode.unidecode(text)
-            # text = unicodedata.normalize('NFKD', text).encode('ascii', 'ignore')
 
             sl[i]["Text"] = text
 
@@ -68,7 +67,7 @@ class TwitterHandler():
         return status
 
     def post_video_reply(self, message, uid, video_file):
-        """Upload video to Twitter and post as a reply to tweet with 'id'"""
+        """Upload video to Twitter and post as a reply to tweet with 'uid'"""
         # Upload the video file first
         with open(video_file, "rb") as f:
             # media_id = self.api.UploadMediaChunked(f)
@@ -77,3 +76,55 @@ class TwitterHandler():
                                          in_reply_to_status_id=uid)
 
         return status
+
+    def get_old_messages(self):
+        """Search for Tweets containing the hashtag in history
+
+        This uses the REST API search/tweets.json call. It searcehes past 7 days
+        in the free API version and is not guaranteed to return all the results.
+        """
+        query = self.api.GetSearch(term=[self.hashtag])
+        # Filter out only status updates
+        hashtag_statuses = [s for s in query if type(s) == twitter.Status]
+        logging.debug("Got %d old tweet(s)" %(len(hashtag_statuses)))
+
+        # Retreive current user's most recent tweets. 200 is max allowed
+        query = self.api.GetUserTimeline(count=200)
+        user_statuses = [s for s in query if type(s) == twitter.Status]
+        logging.debug("Got %d recent status(es) from the current user"
+                      %(len(user_statuses)))
+
+        replied_ids = []
+        for s in user_statuses:
+            if s.in_reply_to_status_id is not None:
+                # This is a reply tweet. Check if we have video
+                if s.media is not None:
+                    replied_ids.append(s.id)
+
+        logging.debug("Out of %d user statuses %d were media replies"
+                      %(len(user_statuses), len(replied_ids)))
+
+        status_list = []
+        for s in hashtag_statuses:
+            if s.id not in replied_ids:
+                status_list.append({"ID": s.id, "ScreenName": s.user.screen_name,
+                                    "Text": self._clean_up_text(s.text)})
+
+        logging.info("Got %d messages, that need replies" %(len(status_list)))
+        return status_list
+
+    def _clean_up_text(self, text):
+        """Get tweeted messages, strip hashtags and convert characters to ascii"""
+        pattern = re.compile(re.escape(self.hashtag), re.IGNORECASE)
+        # Get rid of hashtag (Case insensitive)
+        text = pattern.sub("", text)
+        # Trim leading and ending whitespaces
+        text = text.lstrip()
+        text = text.rstrip()
+        # Convert unicode to standard characters
+        text = unidecode.unidecode(text)
+
+        return text
+
+    def get_stream(self):
+        pass
