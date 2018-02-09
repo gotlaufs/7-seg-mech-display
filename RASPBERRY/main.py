@@ -81,7 +81,6 @@ def main():
                 # Add some fields for DB
                 s["source"] = "Twitter"
                 s["already_shown"] = False
-                s["moderation"] = "None"
                 s["video_len"] = 0
                 s["too_long_video_message_sent"] = False
 
@@ -101,12 +100,6 @@ def main():
 
         # Try to display tweets that need displaying
         for t in to_display:
-            moderation_ok = t["moderation"] == "Pass"
-            if MODERATION_ON and not moderation_ok:
-                logging.warning("This tweet <%s> requires moderation! Skip."
-                                % t["Text"])
-                continue
-
             logging.info("Displaying message: %s" % t["Text"])
             logging.info("Starting video recording")
             time_start = time.time()
