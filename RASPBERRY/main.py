@@ -7,6 +7,7 @@ import subprocess
 import traceback
 import sys
 import select
+import queue
 
 import picamera
 
@@ -52,12 +53,13 @@ class TwitterParrot():
 
     def show_tweet(self, tweet):
         """Show a single Tweet, record it and post a reply"""
-        logging.info("Displaying message: %s" % t["Text"])
+        logging.info("Displaying message: %s" % tweet["Text"])
         logging.info("Starting video recording")
         time_start = time.time()
+        # TODO: Add exception handling here
         self.camera.start_recording(VIDEO_FILE, format="h264", quality=23)
         try:
-            self.arduino.say(t["Text"])
+            self.arduino.say(tweet["Text"])
         except Exception as exc:
             # TODO: Log error
             if PRINT_FULL_EXCEPTION:
@@ -65,7 +67,7 @@ class TwitterParrot():
             print(exc)
 
             logging.error("Fail in Arduino comm.")
-            return
+            return False
 
         logging.debug("Stopping recording")
         self.camera.stop_recording()
@@ -86,12 +88,12 @@ class TwitterParrot():
             else:
                 # TODO: Add stderr and stdout to logging in case of error
                 logging.error("ffmpeg failed with code: %d" % p.returncode)
-                return
+                return False
 
             # Post the video to Twitter
             m = self.get_reply_message()
             try:
-                self.tw.post_video_reply(message=m, uid=t["ID"],
+                self.tw.post_video_reply(message=m, uid=tweet["ID"],
                                     video_file=VIDEO_FILE2)
             except Exception as exc:
                 # TODO: Log exception, not just print
@@ -100,16 +102,18 @@ class TwitterParrot():
                 print(exc)
 
                 logging.error("Some error while posting Twitter video")
-                return
+                return False
 
             logging.info("Succesfully posted video tweet")
+            return True
+
         else:
             logging.error("Recording too long! Discarding..")
 
             message = ("Unfortunately Twitter only allows 30s video. "
-                       "Your message was %ds :(" % t["video_len"])
+                       "Your message was %ds :(" % tweet["video_len"])
             try:
-                tw.post_reply(message, t["ID"])
+                tw.post_reply(message, tweet["ID"])
             except Exception as exc:
                 # TODO: Log exception, not just print
                 if PRINT_FULL_EXCEPTION:
@@ -117,9 +121,10 @@ class TwitterParrot():
                 print(exc)
 
                 logging.error("Some error while posting a regular Tweet")
-                return
+                return False
 
             logging.info("Succesfully posted a reply tweet")
+            return True
 
     def get_reply_message(self):
         """Return a text message that is attached to the reply video"""
@@ -133,8 +138,9 @@ class TwitterParrot():
         2. Display those
         3. Open Streaming interface and run on that endlessly"""
         # TODO: Restart Streaming interface on errors?
+        q = queue.Queue();
         try:
-            statuses = self.tw.get_messages_clean()
+            tweet_list = self.tw.get_old_messages()
         except Exception as exc:
             # TODO: Log exceptions
             if PRINT_FULL_EXCEPTION:
@@ -144,7 +150,26 @@ class TwitterParrot():
             logging.error("Exception while getting tweets! API rate limiting?")
             return
 
-        logging.info("Succesfully got %d tweets from API" % len(statuses))
+        logging.info("Got %d tweets from Search API that need displaying" % len(statuses))
+
+        for tweet in tweet_list:
+            q.put(tweet)
+
+        # Launch Twitter Streaming thread
+        tw.start_stream(q)
+
+        # Main Loop
+        while(True):
+            if q.empty():
+                time.sleep(10)
+            else:
+                tweet = q.get()
+
+            retcode = self.show_tweet(tweet)
+            if not retcode:
+                logging.warning("Putting tweet back into queue due to errors")
+                q.put(tweet)
+
         self.arduino.close()
 
 

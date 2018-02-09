@@ -4,7 +4,7 @@ import logging
 import re
 import unidecode
 import twitter
-
+import threading
 
 class TwitterHandler():
     """Class to interface with Twitter"""
@@ -108,23 +108,45 @@ class TwitterHandler():
         for s in hashtag_statuses:
             if s.id not in replied_ids:
                 status_list.append({"ID": s.id, "ScreenName": s.user.screen_name,
-                                    "Text": self._clean_up_text(s.text)})
+                                    "Text": _clean_up_text(s.text)})
 
         logging.info("Got %d messages, that need replies" %(len(status_list)))
         return status_list
 
-    def _clean_up_text(self, text):
-        """Get tweeted messages, strip hashtags and convert characters to ascii"""
-        pattern = re.compile(re.escape(self.hashtag), re.IGNORECASE)
-        # Get rid of hashtag (Case insensitive)
-        text = pattern.sub("", text)
-        # Trim leading and ending whitespaces
-        text = text.lstrip()
-        text = text.rstrip()
-        # Convert unicode to standard characters
-        text = unidecode.unidecode(text)
+    def start_stream(self, queue):
+        logging.debug("Initializing Twitter streamer thread")
+        thread = TwitterStreamerThread(self.api, self.hashtag, queue)
+        logging.debug("Launching Twitter streamer thread")
+        thread.start()
 
-        return text
 
-    def get_stream(self):
-        pass
+class TwitterStreamerThread(threading.Thread):
+    """A thread for streaming data from Twitter and putting it into a queue"""
+    def __init__(self, api, hashtag, queue):
+        self.name = "TwitterStreamerThread"
+        self.api = twitter
+        self.queue = queue
+        self.hashtag = hashtag
+
+    def run(self):
+        stream = self.api.GetStreamFilter(track=[self.hashtag])
+        for s in stream:
+            logging.debug("Got a new thing in Stream")
+            if type(s) == twitter.Status:
+                logging.info("Adding new Twitter status to Queue")
+                self.queue.put({"ID": s.id, "ScreenName": s.user.screen_name,
+                                    "Text": _clean_up_text(s.text)})
+
+
+def _clean_up_text(text):
+    """Get tweeted messages, strip hashtags and convert characters to ascii"""
+    pattern = re.compile(re.escape(self.hashtag), re.IGNORECASE)
+    # Get rid of hashtag (Case insensitive)
+    text = pattern.sub("", text)
+    # Trim leading and ending whitespaces
+    text = text.lstrip()
+    text = text.rstrip()
+    # Convert unicode to standard characters
+    text = unidecode.unidecode(text)
+
+    return text
