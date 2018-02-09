@@ -14,9 +14,6 @@ import tinydb
 import arduino_handler
 import twitter_handler
 
-# Messages will require moderation before they are displayed
-# Only moderated messages will be displayed if 'True'
-MODERATION_ON = True
 
 # This should work on Raspberry, but just in case adjust as neccessary
 ARDUINO_PORT = "/dev/ttyUSB0"
@@ -95,32 +92,6 @@ def main():
                               % s["ID"])
             elif len(results) > 1:
                 logging.error("More than 1 tweet in db with id <%s>" % s["ID"])
-
-        # Do moderation
-        need_moderation = db.search(entry.moderation == "None")
-        if MODERATION_ON and len(need_moderation) > 0:
-            # Timed moderation prompt
-            timeout = 5
-            print("%d messages need moderation. Do that now? (ENTER)(%ds) :"
-                  % (len(need_moderation), timeout))
-            rlist, _, _ = select.select([sys.stdin], [], [], timeout)
-            if rlist:
-                # Flush stdin
-                sys.stdin.readline()
-                for t in need_moderation:
-                    ans = input("<%s> appropriate? (y/n): " % t["Text"])
-                    if ans == "y" or ans == "Y":
-                        db.update({"moderation": "Pass"},
-                                  entry.ID == t["ID"])
-                    elif ans == "n" or ans == "N":
-                        db.update({"moderation": "Fail"},
-                                  entry.ID == t["ID"])
-                    else:
-                        print("Did not understand '%s'" % ans)
-            else:
-                continue
-        else:
-            logging.info("Message moderation is turned off, skipping..")
 
         # Get a list of messages to display
         to_display = db.search((entry.already_shown == False) &
