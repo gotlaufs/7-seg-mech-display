@@ -8,12 +8,16 @@ import traceback
 import sys
 import select
 import queue
+import os
 
-import picamera
+if os.uname()[4].startswith("arm"):
+    import picamera
+    import arduino_handler
+else:
+    import mock.picamera as picamera
+    import mock.arduino_handler as arduino_handler
 
-import arduino_handler
 import twitter_handler
-
 
 # This should work on Raspberry, but just in case adjust as neccessary
 ARDUINO_PORT = "/dev/ttyUSB0"
@@ -22,14 +26,14 @@ ARDUINO_PORT = "/dev/ttyUSB0"
 LOOP_DELAY = 15
 
 # If True, will print the whole Python traceback on every handled exception
-PRINT_FULL_EXCEPTION = False
+PRINT_FULL_EXCEPTION = True
 
 # Should not me changed
 VIDEO_FILE = "video.h264"
 VIDEO_FILE2 = "video.mp4"
 # Use ffmpeg to put raw h.264 video in mp4 container with no re-encodeing
 # 'y' to all questions
-ENCODE_CMD = ["ffmpeg", "-y", "-i", VIDEO_FILE, "-c", "copy", VIDEO_FILE2]
+ENCODE_CMD = ["ffmpeg", "-loglevel", "24", "-y", "-i", VIDEO_FILE, "-c", "copy", VIDEO_FILE2]
 
 class TwitterParrot():
     """Twitter Parrot App"""
@@ -75,7 +79,12 @@ class TwitterParrot():
 
         # Add some random scaling factor, because videos turn out to be longer than Python timing
         time_video = (time_stop - time_start) * 1.206
-        logging.info("Recording length is %d seconds" % time_video)
+        try:
+            logging.info("Recording length is %d seconds" % time_video)
+        except FileNotFoundError:
+            logging.critical("'ffmpeg' not installed! Exiting..")
+            sys.exit()
+
         if time_video < 30:
 
             # Put raw video into MP4 container
@@ -88,6 +97,7 @@ class TwitterParrot():
             else:
                 # TODO: Add stderr and stdout to logging in case of error
                 logging.error("ffmpeg failed with code: %d" % p.returncode)
+                logging.debug(p.stderr)
                 return False
 
             # Post the video to Twitter
@@ -111,7 +121,7 @@ class TwitterParrot():
             logging.error("Recording too long! Discarding..")
 
             message = ("Unfortunately Twitter only allows 30s video. "
-                       "Your message was %ds :(" % tweet["video_len"])
+                       "Your message was %ds :(" % time_video)
             try:
                 tw.post_reply(message, tweet["ID"])
             except Exception as exc:
@@ -132,12 +142,9 @@ class TwitterParrot():
         return "You say and I reply :)"
 
     def run(self):
-        """Main program loop
-
-        1. Get all the old tweets from REST API
-        2. Display those
-        3. Open Streaming interface and run on that endlessly"""
+        """Main program loop"""
         # TODO: Restart Streaming interface on errors?
+        # TODO: Run search API periodically. Another thread?
         q = queue.Queue();
         try:
             tweet_list = self.tw.get_old_messages()
@@ -150,16 +157,17 @@ class TwitterParrot():
             logging.error("Exception while getting tweets! API rate limiting?")
             return
 
-        logging.info("Got %d tweets from Search API that need displaying" % len(statuses))
+        logging.info("Got %d tweets from Search API that need displaying" % len(tweet_list))
 
         for tweet in tweet_list:
             q.put(tweet)
 
         # Launch Twitter Streaming thread
-        tw.start_stream(q)
+        self.tw.start_stream(q)
 
         # Main Loop
         while(True):
+            logging.debug("There are %d items in the queue" %(q.qsize()))
             if q.empty():
                 time.sleep(10)
             else:
@@ -169,11 +177,12 @@ class TwitterParrot():
             if not retcode:
                 logging.warning("Putting tweet back into queue due to errors")
                 q.put(tweet)
+                time.sleep(10)
 
         self.arduino.close()
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
+    logging.basicConfig(level=logging.DEBUG)
     app = TwitterParrot()
     app.run()

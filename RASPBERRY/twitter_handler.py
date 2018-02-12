@@ -8,7 +8,6 @@ import threading
 
 class TwitterHandler():
     """Class to interface with Twitter"""
-    # '#' must be replaced by '%23' for http?
     hashtag = "#sevensegsay"
     token_file = "auth.json"
 
@@ -108,7 +107,7 @@ class TwitterHandler():
         for s in hashtag_statuses:
             if s.id not in replied_ids:
                 status_list.append({"ID": s.id, "ScreenName": s.user.screen_name,
-                                    "Text": _clean_up_text(s.text)})
+                                    "Text": _clean_up_text(s.text, self.hashtag)})
 
         logging.info("Got %d messages, that need replies" %(len(status_list)))
         return status_list
@@ -122,25 +121,33 @@ class TwitterHandler():
 
 class TwitterStreamerThread(threading.Thread):
     """A thread for streaming data from Twitter and putting it into a queue"""
-    def __init__(self, api, hashtag, queue):
-        self.name = "TwitterStreamerThread"
-        self.api = twitter
+    def __init__(self, api, hashtag, queue, name="TwitterStreamerThread"):
+        super().__init__()
+        self.api = api
         self.queue = queue
         self.hashtag = hashtag
 
     def run(self):
+        logging.debug("Initialized Twitter Stream. Looking for: %s" %(self.hashtag))
         stream = self.api.GetStreamFilter(track=[self.hashtag])
+        # stream = self.api.GetStreamFilter(track=["#first"])
+        # stream = self.api.GetStreamSample()
         for s in stream:
-            logging.debug("Got a new thing in Stream")
-            if type(s) == twitter.Status:
-                logging.info("Adding new Twitter status to Queue")
-                self.queue.put({"ID": s.id, "ScreenName": s.user.screen_name,
-                                    "Text": _clean_up_text(s.text)})
+            print("Got a thing in stream")
+            if "text" in s:
+                print("Got a Tweet:\t%s" %s["text"])
+            # logging.debug("Got a new thing in Stream. Type is: %s" %(type(s)))
+            # logging.info("Adding new Twitter status to Queue")
+            # print(s)
+                self.queue.put({"ID": s["id"], "ScreenName": s["user"]["screen_name"],
+                                    "Text": _clean_up_text(s["text"], self.hashtag)})
+
+        debug.critical("%s terminated!" %(self.name))
 
 
-def _clean_up_text(text):
+def _clean_up_text(text, hashtag):
     """Get tweeted messages, strip hashtags and convert characters to ascii"""
-    pattern = re.compile(re.escape(self.hashtag), re.IGNORECASE)
+    pattern = re.compile(re.escape(hashtag), re.IGNORECASE)
     # Get rid of hashtag (Case insensitive)
     text = pattern.sub("", text)
     # Trim leading and ending whitespaces
