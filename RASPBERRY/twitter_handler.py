@@ -24,41 +24,6 @@ class TwitterHandler():
                                access_token_key=json_data["access_token_key"],
                                access_token_secret=json_data["access_token_secret"])
 
-    def get_messages_dict(self):
-        """Find the Tweets with the hashtag"""
-        # '#' must be replaced by '%23' for http?
-        hashtag = self.hashtag.replace("#", "%23")
-        query = self.api.GetSearch(term=self.hashtag)
-
-        # Filter out only status updates
-        statuses = [s for s in query if type(s) == twitter.Status]
-
-        # Convert to dict for easy JSON storage
-        status_list = []
-        for s in statuses:
-            status_list.append({"ID": s.id, "ScreenName": s.user.screen_name,
-                               "Text": s.text})
-
-        return status_list
-
-    def get_messages_clean(self):
-        """Get tweeted messages, strip hashtags and convert characters to ascii"""
-        pattern = re.compile(re.escape(self.hashtag), re.IGNORECASE)
-        sl = self.get_messages_dict()
-        for i, s in enumerate(sl):
-            text = sl[i]["Text"]
-            # Get rid of hashtag (Case insensitive)
-            text = pattern.sub("", text)
-            # Trim leading and ending whitespaces
-            text = text.lstrip()
-            text = text.rstrip()
-            # Convert unicode to standard characters
-            text = unidecode.unidecode(text)
-
-            sl[i]["Text"] = text
-
-        return sl
-
     def post_reply(self, message, uid):
         """Post reply tweet to specified message"""
         logging.info("Tweeting message <%s>" % message)
@@ -76,41 +41,6 @@ class TwitterHandler():
                                          in_reply_to_status_id=uid)
 
         return status
-
-    def get_old_messages(self):
-        """Search for Tweets containing the hashtag in history
-
-        This uses the REST API search/tweets.json call. It searcehes past 7 days
-        in the free API version and is not guaranteed to return all the results.
-        """
-        query = self.api.GetSearch(term=[self.hashtag])
-        # Filter out only status updates
-        hashtag_statuses = [s for s in query if type(s) == twitter.Status]
-        logging.debug("Got %d old tweet(s)" %(len(hashtag_statuses)))
-
-        # Retreive current user's most recent tweets. 200 is max allowed
-        query = self.api.GetUserTimeline(count=200)
-        user_statuses = [s for s in query if type(s) == twitter.Status]
-        logging.debug("Got %d recent status(es) from the current user"
-                      %(len(user_statuses)))
-
-        replied_ids = []
-        for s in user_statuses:
-            if s.in_reply_to_status_id is not None:
-                # We already have replied something
-                replied_ids.append(s.id)
-
-        logging.debug("Out of %d user statuses %d were our own replies"
-                      %(len(user_statuses), len(replied_ids)))
-
-        status_list = []
-        for s in hashtag_statuses:
-            if s.id not in replied_ids:
-                status_list.append({"ID": s.id, "ScreenName": s.user.screen_name,
-                                    "Text": _clean_up_text(s.text, self.hashtag)})
-
-        logging.info("Got %d messages, that need replies" %(len(status_list)))
-        return status_list
 
     def start_stream(self, queue):
         logging.debug("Initializing Twitter streamer thread")
