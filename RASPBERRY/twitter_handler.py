@@ -6,6 +6,7 @@ import unidecode
 import twitter
 import threading
 
+
 class TwitterHandler():
     """Class to interface with Twitter"""
     hashtag = "#sevensegsay"
@@ -117,6 +118,7 @@ class TwitterHandler():
         thread = TwitterStreamerThread(self.api, self.hashtag, queue)
         logging.debug("Launching Twitter streamer thread")
         thread.start()
+        return thread
 
 
 class TwitterStreamerThread(threading.Thread):
@@ -130,10 +132,9 @@ class TwitterStreamerThread(threading.Thread):
     def run(self):
         logging.debug("Initialized Twitter Stream. Looking for: %s" %(self.hashtag))
         stream = self.api.GetStreamFilter(track=[self.hashtag])
-        # stream = self.api.GetStreamFilter(track=["#first"])
         # stream = self.api.GetStreamSample()
+
         for s in stream:
-            print("Got a thing in stream")
             if "text" in s:
                 print("Got a Tweet:\t%s" %s["text"])
             # logging.debug("Got a new thing in Stream. Type is: %s" %(type(s)))

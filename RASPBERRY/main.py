@@ -163,7 +163,7 @@ class TwitterParrot():
             q.put(tweet)
 
         # Launch Twitter Streaming thread
-        self.tw.start_stream(q)
+        streamer = self.tw.start_stream(q)
 
         # Main Loop
         while(True):
@@ -177,7 +177,11 @@ class TwitterParrot():
             if not retcode:
                 logging.warning("Putting tweet back into queue due to errors")
                 q.put(tweet)
-                time.sleep(10)
+                time.sleep(2)
+
+            if not streamer.isAlive():
+                logging.warning("Streamer thread exited. Restarting..")
+                streamer = self.tw.start_stream(q)
 
         self.arduino.close()
 
