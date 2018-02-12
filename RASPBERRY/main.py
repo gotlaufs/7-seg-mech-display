@@ -22,9 +22,6 @@ import twitter_handler
 # This should work on Raspberry, but just in case adjust as neccessary
 ARDUINO_PORT = "/dev/ttyUSB0"
 
-# Pause between main loop iterations
-LOOP_DELAY = 15
-
 # If True, will print the whole Python traceback on every handled exception
 PRINT_FULL_EXCEPTION = True
 
@@ -60,16 +57,13 @@ class TwitterParrot():
         logging.info("Displaying message: %s" % tweet["Text"])
         logging.info("Starting video recording")
         time_start = time.time()
-        # TODO: Add exception handling here
+        # TODO: Add exception handling here. Maybe
         self.camera.start_recording(VIDEO_FILE, format="h264", quality=23)
         try:
             self.arduino.say(tweet["Text"])
         except Exception as exc:
-            # TODO: Log error
-            if PRINT_FULL_EXCEPTION:
-                print(traceback.format_exc())
-            print(exc)
-
+            logging.debug(traceback.format_exc())
+            logging.info(exc)
             logging.error("Fail in Arduino comm.")
             return False
 
@@ -95,7 +89,7 @@ class TwitterParrot():
             if p.returncode == 0:
                 logging.info("Video conversion done")
             else:
-                # TODO: Add stderr and stdout to logging in case of error
+                # Set error log level in the ENCODE_CMD
                 logging.error("ffmpeg failed with code: %d" % p.returncode)
                 logging.debug(p.stderr)
                 return False
@@ -106,10 +100,8 @@ class TwitterParrot():
                 self.tw.post_video_reply(message=m, uid=tweet["ID"],
                                     video_file=VIDEO_FILE2)
             except Exception as exc:
-                # TODO: Log exception, not just print
-                if PRINT_FULL_EXCEPTION:
-                    print(traceback.format_exc())
-                print(exc)
+                logging.debug(traceback.format_exc())
+                logging.info(exc)
 
                 logging.error("Some error while posting Twitter video")
                 return False
@@ -125,10 +117,8 @@ class TwitterParrot():
             try:
                 tw.post_reply(message, tweet["ID"])
             except Exception as exc:
-                # TODO: Log exception, not just print
-                if PRINT_FULL_EXCEPTION:
-                    print(traceback.format_exc())
-                print(exc)
+                logging.debug(traceback.format_exc())
+                logging.info(exc)
 
                 logging.error("Some error while posting a regular Tweet")
                 return False
@@ -143,17 +133,14 @@ class TwitterParrot():
 
     def run(self):
         """Main program loop"""
-        # TODO: Restart Streaming interface on errors?
-        # TODO: Run search API periodically. Another thread?
         q = queue.Queue();
 
         # Launch REST API Search thread
-        scrubber = self.tw.start_old_message_scrubber(q, interval=5)
+        scrubber = self.tw.start_old_message_scrubber(q, interval=60)
 
         # Launch Twitter Streaming thread
         streamer = self.tw.start_stream(q)
 
-        # Main Loop
         while(True):
             logging.debug("There are %d items in the queue" %(q.qsize()))
             if q.empty():
