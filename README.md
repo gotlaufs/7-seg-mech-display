@@ -7,10 +7,13 @@ Simple serial console is available on serial.
 
 ## RaspberryPi Python3 App
 
-Dependencies (get all of them through pip3):
+Python dependencies (get all of them through pip3):
  - picamera
  - pyserial
  - python-twitter
  - tinydb
  - unidecode
- 
+
+ Linux dependencies:
+  - ffmpeg
+
