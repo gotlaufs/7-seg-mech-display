@@ -5,7 +5,7 @@ import re
 import unidecode
 import twitter
 import threading
-
+import time
 
 class TwitterHandler():
     """Class to interface with Twitter"""
@@ -97,11 +97,10 @@ class TwitterHandler():
         replied_ids = []
         for s in user_statuses:
             if s.in_reply_to_status_id is not None:
-                # This is a reply tweet. Check if we have video
-                if s.media is not None:
-                    replied_ids.append(s.id)
+                # We already have replied something
+                replied_ids.append(s.id)
 
-        logging.debug("Out of %d user statuses %d were media replies"
+        logging.debug("Out of %d user statuses %d were our own replies"
                       %(len(user_statuses), len(replied_ids)))
 
         status_list = []
@@ -116,7 +115,14 @@ class TwitterHandler():
     def start_stream(self, queue):
         logging.debug("Initializing Twitter streamer thread")
         thread = TwitterStreamerThread(self.api, self.hashtag, queue)
+        thread.daemon = True
         logging.debug("Launching Twitter streamer thread")
+        thread.start()
+        return thread
+
+    def start_old_message_scrubber(self, queue, interval=60):
+        thread = TwitterOldMessageScrubber(self.api, self.hashtag, queue, interval)
+        thread.daemon = True
         thread.start()
         return thread
 
@@ -136,15 +142,71 @@ class TwitterStreamerThread(threading.Thread):
 
         for s in stream:
             if "text" in s:
-                print("Got a Tweet:\t%s" %s["text"])
-            # logging.debug("Got a new thing in Stream. Type is: %s" %(type(s)))
-            # logging.info("Adding new Twitter status to Queue")
-            # print(s)
+                logging.info("Got a Tweet:\t%s" %s["text"])
                 self.queue.put({"ID": s["id"], "ScreenName": s["user"]["screen_name"],
                                     "Text": _clean_up_text(s["text"], self.hashtag)})
 
-        debug.critical("%s terminated!" %(self.name))
+        debug.critical("Streamer thread terminated")
 
+
+class TwitterOldMessageScrubber(threading.Thread):
+    """Thread that periodically polls REST API for old messages that are not displayed"""
+    def __init__(self, api, hashtag, queue, interval, name="TwitterOldMessageScrubber"):
+        super().__init__()
+        self.api = api
+        self.queue = queue
+        self.hashtag = hashtag
+        self.interval = interval
+
+    def run(self):
+        """Search for Tweets containing the hashtag in history
+
+        This uses the REST API search/tweets.json call. It searcehes past 7 days
+        in the free API version and is not guaranteed to return all the results.
+        """
+        logging.debug("Initialized REST API scrubber thread")
+
+        while(True):
+            query = self.api.GetSearch(term=[self.hashtag])
+            # Filter out only status updates
+            hashtag_statuses = [s for s in query if type(s) == twitter.Status]
+            logging.debug("Got %d old tweet(s)" %(len(hashtag_statuses)))
+
+            # Retreive current user's most recent tweets. 200 is max allowed
+            query = self.api.GetUserTimeline(count=200)
+            user_statuses = [s for s in query if type(s) == twitter.Status]
+            logging.debug("Got %d recent status(es) from the current user"
+                          %(len(user_statuses)))
+
+            replied_ids = []
+            for s in user_statuses:
+                if s.in_reply_to_status_id is not None:
+                    # We already have replied something
+                    replied_ids.append(s.id)
+
+            logging.debug("Out of %d user statuses %d were our own replies"
+                          %(len(user_statuses), len(replied_ids)))
+
+            status_list = []
+            for s in hashtag_statuses:
+                if s.id not in replied_ids:
+                    status_list.append({"ID": s.id, "ScreenName": s.user.screen_name,
+                                        "Text": _clean_up_text(s.text, self.hashtag)})
+
+            msg_counter = 0
+            for s in status_list:
+                if s in self.queue.queue:
+                    logging.debug("Message already in queue")
+                else:
+                    logging.debug("Putting message into queue")
+                    self.queue.put(s)
+                    msg_counter += 1
+
+            logging.info("Got %d messages, that need replies." %(msg_counter))
+
+            time.sleep(self.interval)
+
+        debug.critical("Old message scrubber terminated")
 
 def _clean_up_text(text, hashtag):
     """Get tweeted messages, strip hashtags and convert characters to ascii"""

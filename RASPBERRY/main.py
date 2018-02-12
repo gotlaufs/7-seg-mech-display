@@ -146,21 +146,9 @@ class TwitterParrot():
         # TODO: Restart Streaming interface on errors?
         # TODO: Run search API periodically. Another thread?
         q = queue.Queue();
-        try:
-            tweet_list = self.tw.get_old_messages()
-        except Exception as exc:
-            # TODO: Log exceptions
-            if PRINT_FULL_EXCEPTION:
-                print(traceback.format_exc())
-            print(exc)
 
-            logging.error("Exception while getting tweets! API rate limiting?")
-            return
-
-        logging.info("Got %d tweets from Search API that need displaying" % len(tweet_list))
-
-        for tweet in tweet_list:
-            q.put(tweet)
+        # Launch REST API Search thread
+        scrubber = self.tw.start_old_message_scrubber(q, interval=5)
 
         # Launch Twitter Streaming thread
         streamer = self.tw.start_stream(q)
@@ -170,6 +158,7 @@ class TwitterParrot():
             logging.debug("There are %d items in the queue" %(q.qsize()))
             if q.empty():
                 time.sleep(10)
+                continue
             else:
                 tweet = q.get()
 
@@ -182,6 +171,10 @@ class TwitterParrot():
             if not streamer.isAlive():
                 logging.warning("Streamer thread exited. Restarting..")
                 streamer = self.tw.start_stream(q)
+
+            if not scrubber.isAlive():
+                logging.warning("REST scrubber exited. Restarting..")
+                scrubber  =self.tw.start_old_message_scrubber(q, interval=60)
 
         self.arduino.close()
 
