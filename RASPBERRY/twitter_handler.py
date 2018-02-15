@@ -26,20 +26,21 @@ class TwitterHandler():
                                access_token_key=json_data["access_token_key"],
                                access_token_secret=json_data["access_token_secret"])
 
-    def post_reply(self, message, uid):
+    def post_reply(self, message, uid, screen_name):
         """Post reply tweet to specified message"""
         logger.info("Tweeting message <%s>" % message)
+        message = str(message) + " @%s" %screen_name
         status = self.api.PostUpdate(message, in_reply_to_status_id=uid)
 
         return status
 
-    def post_video_reply(self, message, uid, video_file):
+    def post_video_reply(self, message, uid, screen_name, video_file):
         """Upload video to Twitter and post as a reply to tweet with 'uid'"""
-        # Upload the video file first
+        message = str(message) + " @%s" %screen_name
         with open(video_file, "rb") as f:
             # media_id = self.api.UploadMediaChunked(f)
             logger.info("Posting video update..")
-            status = self.api.PostUpdate("Here is your reply", media=f,
+            status = self.api.PostUpdate(message, media=f,
                                          in_reply_to_status_id=uid)
 
         return status
@@ -122,8 +123,12 @@ class TwitterOldMessageScrubber(threading.Thread):
             status_list = []
             for s in hashtag_statuses:
                 if s.id not in replied_ids:
-                    status_list.append({"ID": s.id, "ScreenName": s.user.screen_name,
-                                        "Text": _clean_up_text(s.text, self.hashtag)})
+                    tweet_dict = {"ID": s.id, "ScreenName": s.user.screen_name,
+                                        "Text": _clean_up_text(s.text, self.hashtag)}
+                    print(tweet_dict)
+                    for k in tweet_dict:
+                        print(type(k), k)
+                    status_list.append(tweet_dict)
 
             msg_counter = 0
             for s in status_list:
