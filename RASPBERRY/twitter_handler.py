@@ -114,9 +114,9 @@ class TwitterOldMessageScrubber(threading.Thread):
             for s in user_statuses:
                 if s.in_reply_to_status_id is not None:
                     # We already have replied something
-                    replied_ids.append(s.id)
+                    replied_ids.append(s.in_reply_to_status_id)
 
-            logger.debug("Out of %d user statuses %d were our own replies"
+            logger.debug("Out of %d user statuses %d were our own replies to some tweets"
                           %(len(user_statuses), len(replied_ids)))
 
             status_list = []
