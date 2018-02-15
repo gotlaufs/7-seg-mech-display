@@ -26,24 +26,18 @@ class TwitterHandler():
                                access_token_key=json_data["access_token_key"],
                                access_token_secret=json_data["access_token_secret"])
 
-    def post_reply(self, message, uid, screen_name):
-        """Post reply tweet to specified message"""
+    def post_reply(self, message, tweet, video_file=None):
+        """Upload message to Twitter. Handles video as well"""
+        message = str(message) + " @%s" %tweet["ScreenName"]
         logger.info("Tweeting message <%s>" % message)
-        message = str(message) + " @%s" %screen_name
-        status = self.api.PostUpdate(message, in_reply_to_status_id=uid)
-
-        return status
-
-    def post_video_reply(self, message, uid, screen_name, video_file):
-        """Upload video to Twitter and post as a reply to tweet with 'uid'"""
-        message = str(message) + " @%s" %screen_name
-        with open(video_file, "rb") as f:
-            # media_id = self.api.UploadMediaChunked(f)
-            logger.info("Posting video update..")
-            status = self.api.PostUpdate(message, media=f,
-                                         in_reply_to_status_id=uid)
-
-        return status
+        if video_file is None:
+            logger.debug("Posting standard tweet..")
+            status = self.api.PostUpdate(message, in_reply_to_status_id=tweet["ID"])
+        else:
+            with open(video_file, "rb") as f:
+                logger.debug("Posting video update..")
+                status = self.api.PostUpdate(message, media=f,
+                                             in_reply_to_status_id=tweet["ID"])
 
     def start_stream(self, queue):
         logger.debug("Initializing Twitter streamer thread")
@@ -75,7 +69,7 @@ class TwitterStreamerThread(threading.Thread):
 
         for s in stream:
             if "text" in s:
-                logger.info("Got a Tweet:\t%s" %s["text"])
+                logger.info("STREAMER: Got a Tweet:\t%s" %s["text"])
                 self.queue.put({"ID": s["id"], "ScreenName": s["user"]["screen_name"],
                                     "Text": _clean_up_text(s["text"], self.hashtag)})
 
@@ -103,7 +97,9 @@ class TwitterOldMessageScrubber(threading.Thread):
             query = self.api.GetSearch(term=[self.hashtag])
             # Filter out only status updates
             hashtag_statuses = [s for s in query if type(s) == twitter.Status]
-            logger.debug("Got %d old tweet(s)" %(len(hashtag_statuses)))
+            logger.debug("Running Scrubber. Got %d old tweet(s):" %(len(hashtag_statuses)))
+            for h in hashtag_statuses:
+                logger.debug("Tweet = ", h.text)
 
             # Retreive current user's most recent tweets. 200 is max allowed
             query = self.api.GetUserTimeline(count=200)

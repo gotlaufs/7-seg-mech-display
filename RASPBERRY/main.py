@@ -47,10 +47,6 @@ class TwitterParrot():
         self.arduino.letter_delay(100)
         self.arduino.word_delay(200)
 
-        logger.info("Initializing camera")
-        self.camera = picamera.PiCamera()
-        self.camera.resolution = (1280, 720)
-
         logger.info("Initializing Twitter")
         self.tw = twitter_handler.TwitterHandler()
 
@@ -60,10 +56,22 @@ class TwitterParrot():
         logger.info("Starting video recording")
         time_start = time.time()
         # TODO: Add exception handling here. Maybe
-        self.camera.start_recording(VIDEO_FILE, format="h264", quality=23)
+        try:
+            logger.info("Initializing camera")
+            self.camera = picamera.PiCamera()
+            self.camera.resolution = (1280, 720)
+            self.camera.start_recording(VIDEO_FILE, format="h264", quality=23)
+        except Exception as exc:
+            self.camera.close()
+            logger.debug(traceback.format_exc())
+            logger.info(exc)
+            logger.error("Error in starting camera")
+            return False
+
         try:
             self.arduino.say(tweet["Text"])
         except Exception as exc:
+            self.camera.close()
             logger.debug(traceback.format_exc())
             logger.info(exc)
             logger.error("Fail in Arduino comm.")
@@ -71,6 +79,7 @@ class TwitterParrot():
 
         logger.debug("Stopping recording")
         self.camera.stop_recording()
+        self.camera.close()
         time_stop = time.time()
 
         # Add some random scaling factor, because videos turn out to be longer than Python timing
@@ -97,9 +106,9 @@ class TwitterParrot():
                 return False
 
             # Post the video to Twitter
-            m = self.get_reply_message()
+            message = self.get_reply_message()
             try:
-                self.tw.post_video_reply(message=m, uid=tweet["ID"],
+                self.tw.post_reply(message, tweet,
                                     video_file=VIDEO_FILE2)
             except Exception as exc:
                 logger.debug(traceback.format_exc())
@@ -117,7 +126,7 @@ class TwitterParrot():
             message = ("Unfortunately Twitter only allows 30s video. "
                        "Your message was %ds :(" % time_video)
             try:
-                tw.post_reply(message, tweet["ID"])
+                tw.post_reply(message, tweet)
             except Exception as exc:
                 logger.debug(traceback.format_exc())
                 logger.info(exc)
@@ -180,7 +189,7 @@ if __name__ == "__main__":
     main_logger.setLevel(logging.DEBUG)
 
     handler = logging.StreamHandler()
-    handler.setLevel(logging.DEBUG)
+    handler.setLevel(logging.INFO)
     formatter = logging.Formatter('%(asctime)s %(levelname)s :%(filename)s - %(message)s')
     handler.setFormatter(formatter)
 
