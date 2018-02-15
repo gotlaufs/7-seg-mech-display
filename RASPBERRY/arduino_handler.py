@@ -3,6 +3,7 @@ import serial
 import logging
 import time
 
+logger = logging.getLogger(__name__)
 
 class ArduinoHandler():
     """Class to interface with Arduino FW"""
@@ -30,14 +31,14 @@ class ArduinoHandler():
         self.port.timeout = self.SERIAL_TIMEOUT
 
         if port is None:
-            logging.info("No port specified, setting to <%s>"
+            logger.info("No port specified, setting to <%s>"
                          % self.DEFAULT_PORT)
             self.port.port = self.DEFAULT_PORT
         else:
             self.port.port = port
 
         # Open the serial port for writing
-        logging.debug("Trying to open serial port <%s>.." % self.port.port)
+        logger.debug("Trying to open serial port <%s>.." % self.port.port)
         self.port.open()
         time.sleep(2)
         self.port.reset_input_buffer()
@@ -45,7 +46,7 @@ class ArduinoHandler():
     def say(self, message):
         """Make the display say something"""
         if len(message) > self.MAX_MESSAGE_LEN:
-            logging.error("Message too long (%d), trimming to (%d)"
+            logger.error("Message too long (%d), trimming to (%d)"
                           % (len(message), self.MAX_MESSAGE_LEN))
             message = message[0:self.MAX_MESSAGE_LEN]
 
@@ -62,7 +63,7 @@ class ArduinoHandler():
             timeout += len(message) * regular_time
 
         timeout = timeout/1000
-        logging.debug("Calculated display time for message is %.2f s"
+        logger.debug("Calculated display time for message is %.2f s"
                       % timeout)
 
         data = "SAY " + message
@@ -82,7 +83,7 @@ class ArduinoHandler():
         self._send_bytes(data)
         self._reply_check()
         self.BLANK = state
-        logging.debug("Set BLANK to %s" % state)
+        logger.debug("Set BLANK to %s" % state)
 
     def letter_delay(self, delay):
         """Set the delay between displaying characters
@@ -94,7 +95,7 @@ class ArduinoHandler():
         self._send_bytes(data)
         self._reply_check()
         self.LETTER_DELAY = delay
-        logging.debug("Set LETTER_DELAY to %d ms" % delay)
+        logger.debug("Set LETTER_DELAY to %d ms" % delay)
 
     def word_delay(self, delay):
         """Set the delay between displaying words
@@ -106,15 +107,15 @@ class ArduinoHandler():
         self._send_bytes(data)
         self._reply_check()
         self.WORD_DELAY = delay
-        logging.debug("Set WORD_DELAY to %d ms" % delay)
+        logger.debug("Set WORD_DELAY to %d ms" % delay)
 
     def close(self):
         """Do cleanup"""
         if self.port.is_open:
-            logging.info("Closing serial port..")
+            logger.info("Closing serial port..")
             self.port.close()
         else:
-            logging.warning("Tried to close serial port that is not open")
+            logger.warning("Tried to close serial port that is not open")
 
     def _send_bytes(self, string):
         """Actual sending of Bytes.
@@ -123,7 +124,7 @@ class ArduinoHandler():
         self.port.write(self.TERM_CHAR)
         time.sleep(self.SERIAL_DELAY)
         self.port.reset_input_buffer()
-        logging.debug("Sending message: <%s>" % string)
+        logger.debug("Sending message: <%s>" % string)
         string += "\n"
         self.port.write(string.encode())
 
@@ -136,7 +137,7 @@ class ArduinoHandler():
         line = line.decode()
 
         if "OK" in line:
-            logging.debug("Got an OK response")
+            logger.debug("Got an OK response")
             return line
         else:
             rem_bytes = self.port.in_waiting

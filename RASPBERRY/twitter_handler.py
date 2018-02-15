@@ -7,6 +7,8 @@ import twitter
 import threading
 import time
 
+logger = logging.getLogger(__name__)
+
 class TwitterHandler():
     """Class to interface with Twitter"""
     hashtag = "#sevensegsay"
@@ -14,11 +16,11 @@ class TwitterHandler():
 
     def __init__(self):
         """Initializer"""
-        logging.debug("Reading twitter auth data from <%s>" % self.token_file)
+        logger.debug("Reading twitter auth data from <%s>" % self.token_file)
         with open(self.token_file, "r") as f:
             json_data = json.load(f)
 
-        logging.info("Logging into Twitter..")
+        logger.info("logger into Twitter..")
         self.api = twitter.Api(consumer_key=json_data["consumer_key"],
                                consumer_secret=json_data["consumer_secret"],
                                access_token_key=json_data["access_token_key"],
@@ -26,7 +28,7 @@ class TwitterHandler():
 
     def post_reply(self, message, uid):
         """Post reply tweet to specified message"""
-        logging.info("Tweeting message <%s>" % message)
+        logger.info("Tweeting message <%s>" % message)
         status = self.api.PostUpdate(message, in_reply_to_status_id=uid)
 
         return status
@@ -36,17 +38,17 @@ class TwitterHandler():
         # Upload the video file first
         with open(video_file, "rb") as f:
             # media_id = self.api.UploadMediaChunked(f)
-            logging.info("Posting video update..")
+            logger.info("Posting video update..")
             status = self.api.PostUpdate("Here is your reply", media=f,
                                          in_reply_to_status_id=uid)
 
         return status
 
     def start_stream(self, queue):
-        logging.debug("Initializing Twitter streamer thread")
+        logger.debug("Initializing Twitter streamer thread")
         thread = TwitterStreamerThread(self.api, self.hashtag, queue)
         thread.daemon = True
-        logging.debug("Launching Twitter streamer thread")
+        logger.debug("Launching Twitter streamer thread")
         thread.start()
         return thread
 
@@ -66,13 +68,13 @@ class TwitterStreamerThread(threading.Thread):
         self.hashtag = hashtag
 
     def run(self):
-        logging.debug("Initialized Twitter Stream. Looking for: %s" %(self.hashtag))
+        logger.debug("Initialized Twitter Stream. Looking for: %s" %(self.hashtag))
         stream = self.api.GetStreamFilter(track=[self.hashtag])
         # stream = self.api.GetStreamSample()
 
         for s in stream:
             if "text" in s:
-                logging.info("Got a Tweet:\t%s" %s["text"])
+                logger.info("Got a Tweet:\t%s" %s["text"])
                 self.queue.put({"ID": s["id"], "ScreenName": s["user"]["screen_name"],
                                     "Text": _clean_up_text(s["text"], self.hashtag)})
 
@@ -94,18 +96,18 @@ class TwitterOldMessageScrubber(threading.Thread):
         This uses the REST API search/tweets.json call. It searcehes past 7 days
         in the free API version and is not guaranteed to return all the results.
         """
-        logging.debug("Initialized REST API scrubber thread")
+        logger.debug("Initialized REST API scrubber thread")
 
         while(True):
             query = self.api.GetSearch(term=[self.hashtag])
             # Filter out only status updates
             hashtag_statuses = [s for s in query if type(s) == twitter.Status]
-            logging.debug("Got %d old tweet(s)" %(len(hashtag_statuses)))
+            logger.debug("Got %d old tweet(s)" %(len(hashtag_statuses)))
 
             # Retreive current user's most recent tweets. 200 is max allowed
             query = self.api.GetUserTimeline(count=200)
             user_statuses = [s for s in query if type(s) == twitter.Status]
-            logging.debug("Got %d recent status(es) from the current user"
+            logger.debug("Got %d recent status(es) from the current user"
                           %(len(user_statuses)))
 
             replied_ids = []
@@ -114,7 +116,7 @@ class TwitterOldMessageScrubber(threading.Thread):
                     # We already have replied something
                     replied_ids.append(s.id)
 
-            logging.debug("Out of %d user statuses %d were our own replies"
+            logger.debug("Out of %d user statuses %d were our own replies"
                           %(len(user_statuses), len(replied_ids)))
 
             status_list = []
@@ -126,13 +128,13 @@ class TwitterOldMessageScrubber(threading.Thread):
             msg_counter = 0
             for s in status_list:
                 if s in self.queue.queue:
-                    logging.debug("Message already in queue")
+                    logger.debug("Message already in queue")
                 else:
-                    logging.debug("Putting message into queue")
+                    logger.debug("Putting message into queue")
                     self.queue.put(s)
                     msg_counter += 1
 
-            logging.info("Got %d messages, that need replies." %(msg_counter))
+            logger.info("Got %d messages, that need replies." %(msg_counter))
 
             time.sleep(self.interval)
 
