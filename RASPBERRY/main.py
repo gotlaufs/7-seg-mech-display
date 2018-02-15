@@ -147,15 +147,27 @@ class TwitterParrot():
         q = queue.Queue();
 
         # Launch REST API Search thread
-        scrubber = self.tw.start_old_message_scrubber(q, interval=60)
+        scrubber = self.tw.start_old_message_scrubber(q, interval=120)
 
         # Launch Twitter Streaming thread
         streamer = self.tw.start_stream(q)
 
         while(True):
+            if not streamer.isAlive():
+                logger.warning("Streamer thread exited. Restarting..")
+                streamer = self.tw.start_stream(q)
+            else:
+                logger.debug("Streamer thread alive")
+
+            if not scrubber.isAlive():
+                logger.warning("REST scrubber exited. Restarting..")
+                scrubber  =self.tw.start_old_message_scrubber(q, interval=120)
+            else:
+                logger.debug("Scrubber thread alive")
+
             logger.debug("There are %d items in the queue" %(q.qsize()))
             if q.empty():
-                time.sleep(10)
+                time.sleep(60)
                 continue
             else:
                 tweet = q.get()
@@ -166,13 +178,6 @@ class TwitterParrot():
                 q.put(tweet)
                 time.sleep(2)
 
-            if not streamer.isAlive():
-                logger.warning("Streamer thread exited. Restarting..")
-                streamer = self.tw.start_stream(q)
-
-            if not scrubber.isAlive():
-                logger.warning("REST scrubber exited. Restarting..")
-                scrubber  =self.tw.start_old_message_scrubber(q, interval=60)
 
         self.arduino.close()
 
@@ -188,14 +193,23 @@ if __name__ == "__main__":
     main_logger = logging.getLogger('MAIN')
     main_logger.setLevel(logging.DEBUG)
 
-    handler = logging.StreamHandler()
-    handler.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(asctime)s %(levelname)s :%(filename)s - %(message)s')
-    handler.setFormatter(formatter)
+    print_handler = logging.StreamHandler()
+    print_handler.setLevel(logging.INFO)
+    print_formatter = logging.Formatter('%(asctime)s %(levelname)s :%(filename)s - %(message)s')
+    print_handler.setFormatter(print_formatter)
 
-    logger.addHandler(handler)
-    twitter_handler_logger.addHandler(handler)
-    arduino_handler_logger.addHandler(handler)
+    file_handler = logging.FileHandler("log.txt")
+    print_handler.setLevel(logging.DEBUG)
+    file_formatter = logging.Formatter('%(asctime)s %(levelname)s %(lineno)d:%(filename)s(%(process)d) - %(message)s')
+    file_handler.setFormatter(file_formatter)
+
+    logger.addHandler(file_handler)
+    twitter_handler_logger.addHandler(file_handler)
+    arduino_handler_logger.addHandler(file_handler)
+
+    logger.addHandler(print_handler)
+    twitter_handler_logger.addHandler(print_handler)
+    arduino_handler_logger.addHandler(print_handler)
 
     app = TwitterParrot()
     app.run()

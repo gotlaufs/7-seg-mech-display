@@ -99,7 +99,7 @@ class TwitterOldMessageScrubber(threading.Thread):
             hashtag_statuses = [s for s in query if type(s) == twitter.Status]
             logger.debug("Running Scrubber. Got %d old tweet(s):" %(len(hashtag_statuses)))
             for h in hashtag_statuses:
-                logger.debug("Tweet = ", h.text)
+                logger.debug("Tweet = %s" %h.text)
 
             # Retreive current user's most recent tweets. 200 is max allowed
             query = self.api.GetUserTimeline(count=200)
