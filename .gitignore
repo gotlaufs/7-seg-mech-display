@@ -4,3 +4,4 @@ auth.json
 test*
 *.h264
 *.mp4
+log.txt
