@@ -126,7 +126,7 @@ class TwitterParrot():
             message = ("Unfortunately Twitter only allows 30s video. "
                        "Your message was %ds :(" % time_video)
             try:
-                tw.post_reply(message, tweet)
+                self.tw.post_reply(message, tweet)
             except Exception as exc:
                 logger.debug(traceback.format_exc())
                 logger.info(exc)
