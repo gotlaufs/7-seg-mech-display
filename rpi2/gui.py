@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import *
 import PyQt5.QtGui
 import threading
 import queue
+import os
 
 seg_say_string ="""
 ____________________________________________________
@@ -92,4 +93,4 @@ class GuiThread(threading.Thread):
         app = QApplication([])
         app.setStyle('Fusion')
         window = gui(self.queue)
-        app.exec_()
+        os._exit(app.exec_())

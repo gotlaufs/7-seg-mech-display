@@ -10,6 +10,7 @@ import select
 import queue
 import os
 import gui
+import arduino_handler
 
 # if os.uname()[4].startswith("arm"):
 #     import picamera
@@ -23,7 +24,7 @@ import gui
 # logger = logging.getLogger("MAIN")
 
 # # This should work on Raspberry, but just in case adjust as neccessary
-# ARDUINO_PORT = "/dev/ttyUSB0"
+ARDUINO_PORT = "/dev/ttyUSB1"
 
 # # If True, will print the whole Python traceback on every handled exception
 # PRINT_FULL_EXCEPTION = True
@@ -185,12 +186,13 @@ class TwitterParrot():
 class BasicApp():
     def __init__(self):
         self.arduino = arduino_handler.ArduinoHandler(ARDUINO_PORT)
-        logger.info("Setting Arduino display parameters")
+        # logger.info("Setting Arduino display parameters")
         self.arduino.blank(False)
         self.arduino.letter_delay(100)
         self.arduino.word_delay(200)
         self.q = queue.Queue();
         self.gui = gui.GuiThread(self.q)
+        self.gui.start()
 
     def run(self):
 
